@@ -1,156 +1,23 @@
 import DefaultLayout from "@/layouts/default";
 import { Avatar, Button, Card, Chip, Input, Table } from "@heroui/react";
+import { useShiftContext } from "@/contexts/ShiftContext";
+import { SHORT_DAY_ABBREVIATIONS, DayOfWeek } from "@/types";
+import {
+	getShiftsForEmployeeOnDay,
+	formatShift,
+	calculateShiftDuration,
+} from "@/utils/shiftUtils";
 
-const dayColumns = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const metrics = [
-	{ label: "Scheduled hours", value: "156", detail: "+12 from last week" },
-	{ label: "Active employees", value: "8", detail: "2 supervisors on call" },
-	{
-		label: "Conflicts flagged",
-		value: "2",
-		detail: "1 overlap, 1 coverage gap",
-	},
-	{ label: "Coverage score", value: "91%", detail: "Weekend fill still open" },
-];
-
-const employees = [
-	{
-		name: "Maya Chen",
-		role: "Supervisor · Front desk",
-		hours: 38,
-		avatar: "MC",
-		availability: "Mon-Fri",
-		status: "Fully covered",
-		statusTone: "success" as const,
-	},
-	{
-		name: "Jordan Lee",
-		role: "Cook",
-		hours: 34,
-		avatar: "JL",
-		availability: "Tue-Sat",
-		status: "1 gap",
-		statusTone: "warning" as const,
-	},
-	{
-		name: "Sofia Patel",
-		role: "Cashier",
-		hours: 29,
-		avatar: "SP",
-		availability: "Evenings",
-		status: "Balanced",
-		statusTone: "primary" as const,
-	},
-	{
-		name: "Noah Evans",
-		role: "Supervisor · Stock",
-		hours: 41,
-		avatar: "NE",
-		availability: "Weekend",
-		status: "Over limit",
-		statusTone: "danger" as const,
-	},
-	{
-		name: "Ava Reed",
-		role: "Cook",
-		hours: 22,
-		avatar: "AR",
-		availability: "Mon, Wed, Fri",
-		status: "Part-time",
-		statusTone: "default" as const,
-	},
-];
-
-const scheduleRows = [
-	{
-		name: "Maya Chen",
-		role: "Supervisor",
-		shifts: {
-			Mon: ["06:00-14:00", "18:00-22:00"],
-			Tue: ["06:00-14:00"],
-			Wed: ["06:00-14:00"],
-			Thu: ["06:00-14:00"],
-			Fri: ["06:00-14:00"],
-			Sat: ["Off"],
-			Sun: ["Off"],
-		},
-	},
-	{
-		name: "Jordan Lee",
-		role: "Cook",
-		shifts: {
-			Mon: ["Off"],
-			Tue: ["12:00-20:00"],
-			Wed: ["12:00-20:00"],
-			Thu: ["12:00-20:00"],
-			Fri: ["12:00-20:00"],
-			Sat: ["09:00-17:00"],
-			Sun: ["Off"],
-		},
-	},
-	{
-		name: "Sofia Patel",
-		role: "Cashier",
-		shifts: {
-			Mon: ["14:00-22:00"],
-			Tue: ["14:00-22:00"],
-			Wed: ["Off"],
-			Thu: ["14:00-22:00"],
-			Fri: ["14:00-22:00"],
-			Sat: ["10:00-18:00"],
-			Sun: ["10:00-18:00"],
-		},
-	},
-	{
-		name: "Noah Evans",
-		role: "Supervisor",
-		shifts: {
-			Mon: ["08:00-16:00"],
-			Tue: ["08:00-16:00"],
-			Wed: ["08:00-16:00"],
-			Thu: ["08:00-16:00"],
-			Fri: ["08:00-16:00"],
-			Sat: ["08:00-16:00"],
-			Sun: ["08:00-16:00"],
-		},
-	},
-	{
-		name: "Ava Reed",
-		role: "Cook",
-		shifts: {
-			Mon: ["Off"],
-			Tue: ["Off"],
-			Wed: ["09:00-17:00"],
-			Thu: ["Off"],
-			Fri: ["09:00-17:00"],
-			Sat: ["09:00-17:00"],
-			Sun: ["Off"],
-		},
-	},
-];
-
-const conflictItems = [
-	{
-		title: "Maya Chen has overlapping Monday coverage",
-		description:
-			"Two shifts were assigned on the same day with a two-hour overlap.",
-		tone: "danger" as const,
-	},
-	{
-		title: "Noah Evans hits a seven-day streak",
-		description: "The current plan exceeds the five-day consecutive work rule.",
-		tone: "warning" as const,
-	},
-];
-
-const summaryItems = [
-	{ name: "Maya Chen", hours: 38, cap: 40 },
-	{ name: "Jordan Lee", hours: 34, cap: 40 },
-	{ name: "Sofia Patel", hours: 29, cap: 32 },
-	{ name: "Noah Evans", hours: 41, cap: 40 },
-	{ name: "Ava Reed", hours: 22, cap: 24 },
-];
+const dayColumns = SHORT_DAY_ABBREVIATIONS;
+const DAY_MAPPING: Record<string, DayOfWeek> = {
+	Mon: "Monday",
+	Tue: "Tuesday",
+	Wed: "Wednesday",
+	Thu: "Thursday",
+	Fri: "Friday",
+	Sat: "Saturday",
+	Sun: "Sunday",
+};
 
 function getChipClassName(tone: string) {
 	if (tone === "danger") {
@@ -172,7 +39,161 @@ function getChipClassName(tone: string) {
 	return "border border-default-200 bg-default-100 text-foreground";
 }
 
+// Helper function to get status tone based on hours
+function getStatusTone(
+	hours: number,
+	cap: number = 40,
+): "success" | "warning" | "danger" | "default" {
+	if (hours >= cap) return "danger";
+	if (hours >= cap * 0.9) return "warning";
+	if (hours >= cap * 0.7) return "success";
+	return "default";
+}
+
+// Helper function to get status text
+function getStatusText(hours: number, cap: number = 40): string {
+	if (hours >= cap) return "Over limit";
+	if (hours >= cap * 0.9) return "Near limit";
+	if (hours >= cap * 0.7) return "Good coverage";
+	return "Part-time";
+}
+
 export default function IndexPage() {
+	const { state, getEmployeeShifts, getTotalHoursForEmployee } =
+		useShiftContext();
+
+	// Calculate metrics dynamically
+	const totalScheduledHours = state.shifts.reduce((total, shift) => {
+		return total + calculateShiftDuration(shift.startTime, shift.endTime);
+	}, 0);
+
+	const activeEmployees = state.employees.length;
+	const conflictsFlagged = state.conflicts.length;
+
+	// Calculate coverage score (simplified)
+	const totalPossibleHours = state.employees.length * 40; // Assuming 40h max per employee
+	const coverageScore = Math.min(
+		Math.round((totalScheduledHours / totalPossibleHours) * 100),
+		100,
+	);
+
+	const metrics = [
+		{
+			label: "Scheduled hours",
+			value: Math.round(totalScheduledHours).toString(),
+			detail: "Total hours scheduled this week",
+		},
+		{
+			label: "Active employees",
+			value: activeEmployees.toString(),
+			detail: `${state.employees.filter((e) => e.roles.includes("Supervisor")).length} supervisors on call`,
+		},
+		{
+			label: "Conflicts flagged",
+			value: conflictsFlagged.toString(),
+			detail: `${state.conflicts.filter((c) => c.type === "overlap").length} overlap, ${state.conflicts.filter((c) => c.type === "consecutive_days").length} consecutive days`,
+		},
+		{
+			label: "Coverage score",
+			value: `${coverageScore}%`,
+			detail: "Based on available hours vs scheduled",
+		},
+	];
+
+	// Prepare schedule rows from real data
+	const scheduleRows = state.employees.map((employee) => {
+		// Group shifts by day
+		const shiftsByDay: Record<string, string[]> = {};
+		dayColumns.forEach((dayAbbr) => {
+			const fullDay = DAY_MAPPING[dayAbbr];
+			const dayShifts = getShiftsForEmployeeOnDay(
+				state.shifts,
+				employee.id,
+				fullDay,
+			);
+
+			if (dayShifts.length === 0) {
+				shiftsByDay[dayAbbr] = ["Off"];
+			} else {
+				shiftsByDay[dayAbbr] = dayShifts.map(formatShift);
+			}
+		});
+
+		return {
+			id: employee.id,
+			name: employee.name,
+			role: employee.roles.join(" · "),
+			shifts: shiftsByDay,
+		};
+	});
+
+	// Prepare employee cards from real data
+	const employeeCards = state.employees.map((employee) => {
+		const totalHours = getTotalHoursForEmployee(employee.id);
+		const cap = employee.maxHoursPerWeek || 40;
+		const statusTone = getStatusTone(totalHours, cap);
+		const statusText = getStatusText(totalHours, cap);
+
+		// Generate avatar initials
+		const avatar = employee.name
+			.split(" ")
+			.map((part) => part[0])
+			.join("");
+
+		// Simple availability calculation (for demo)
+		const employeeShifts = getEmployeeShifts(employee.id);
+		const daysWithShifts = new Set(employeeShifts.map((s) => s.day));
+		const availability =
+			daysWithShifts.size > 0
+				? `${daysWithShifts.size} days scheduled`
+				: "No shifts assigned";
+
+		return {
+			id: employee.id,
+			name: employee.name,
+			role: employee.roles.join(" · "),
+			hours: Math.round(totalHours),
+			avatar,
+			availability,
+			status: statusText,
+			statusTone,
+		};
+	});
+
+	// Prepare summary items from real data
+	const summaryItems = state.employees.map((employee) => {
+		const totalHours = getTotalHoursForEmployee(employee.id);
+		const cap = employee.maxHoursPerWeek || 40;
+
+		return {
+			id: employee.id,
+			name: employee.name,
+			hours: Math.round(totalHours),
+			cap,
+		};
+	});
+
+	// Check if shift has conflict
+	const hasShiftConflict = (
+		employeeId: string,
+		dayAbbr: string,
+		shiftText: string,
+	): boolean => {
+		if (shiftText === "Off") return false;
+
+		const fullDay = DAY_MAPPING[dayAbbr];
+		const employeeConflicts = state.conflicts.filter(
+			(c) => c.employeeId === employeeId,
+		);
+
+		// Check for overlap conflicts on this day
+		const overlapConflict = employeeConflicts.find(
+			(c) => c.type === "overlap" && c.description.includes(fullDay),
+		);
+
+		return !!overlapConflict;
+	};
+
 	return (
 		<DefaultLayout>
 			<section className="flex w-full flex-col gap-6 pb-8" id="overview">
@@ -248,7 +269,7 @@ export default function IndexPage() {
 											</Table.Header>
 											<Table.Body>
 												{scheduleRows.map((row) => (
-													<Table.Row key={row.name}>
+													<Table.Row key={row.id}>
 														<Table.Cell>
 															<div className="flex items-center gap-3">
 																<Avatar className="h-10 w-10 border border-separator/70 bg-primary/10 text-sm font-semibold text-primary">
@@ -268,22 +289,23 @@ export default function IndexPage() {
 															</div>
 														</Table.Cell>
 														{dayColumns.map((day) => {
-															const shifts =
-																row.shifts[day as keyof typeof row.shifts];
+															const shifts = row.shifts[day];
 
 															return (
-																<Table.Cell key={`${row.name}-${day}`}>
+																<Table.Cell key={`${row.id}-${day}`}>
 																	<div className="flex flex-wrap gap-2">
 																		{shifts.map((shift) => (
 																			<Chip
-																				key={`${row.name}-${day}-${shift}`}
+																				key={`${row.id}-${day}-${shift}`}
 																				className={
 																					shift === "Off"
 																						? getChipClassName("default")
 																						: getChipClassName(
-																								day === "Mon" &&
-																									row.name === "Maya Chen" &&
-																									shift === "18:00-22:00"
+																								hasShiftConflict(
+																									row.id,
+																									day,
+																									shift,
+																								)
 																									? "danger"
 																									: "primary",
 																							)
@@ -320,9 +342,9 @@ export default function IndexPage() {
 								</div>
 							</Card.Header>
 							<Card.Content className="space-y-4 p-6">
-								{employees.map((employee) => (
+								{employeeCards.map((employee) => (
 									<div
-										key={employee.name}
+										key={employee.id}
 										className="rounded-2xl border border-separator/70 bg-default-50 p-4"
 									>
 										<div className="flex items-start justify-between gap-3">
@@ -377,7 +399,7 @@ export default function IndexPage() {
 									const percent = Math.min((item.hours / item.cap) * 100, 100);
 
 									return (
-										<div key={item.name} className="space-y-2">
+										<div key={item.id} className="space-y-2">
 											<div className="flex items-center justify-between gap-3 text-sm">
 												<span className="font-medium text-foreground">
 													{item.name}
@@ -411,24 +433,39 @@ export default function IndexPage() {
 								</div>
 							</Card.Header>
 							<Card.Content className="space-y-3 p-6">
-								{conflictItems.map((conflict) => (
-									<div
-										key={conflict.title}
-										className="rounded-2xl border border-separator/70 bg-default-50 p-4"
-									>
-										<Chip className={getChipClassName(conflict.tone)}>
-											{conflict.tone === "danger"
-												? "Overlap"
-												: "Consecutive days"}
+								{state.conflicts.length === 0 ? (
+									<div className="rounded-2xl border border-separator/70 bg-default-50 p-4">
+										<Chip className={getChipClassName("success")}>
+											No conflicts
 										</Chip>
 										<p className="mt-3 font-medium text-foreground">
-											{conflict.title}
+											Schedule looks good!
 										</p>
 										<p className="mt-1 text-sm text-muted">
-											{conflict.description}
+											No overlapping shifts or consecutive day violations
+											detected.
 										</p>
 									</div>
-								))}
+								) : (
+									state.conflicts.map((conflict) => (
+										<div
+											key={`${conflict.employeeId}-${conflict.type}`}
+											className="rounded-2xl border border-separator/70 bg-default-50 p-4"
+										>
+											<Chip className={getChipClassName(conflict.severity)}>
+												{conflict.type === "overlap"
+													? "Overlap"
+													: "Consecutive days"}
+											</Chip>
+											<p className="mt-3 font-medium text-foreground">
+												{conflict.description}
+											</p>
+											<p className="mt-1 text-sm text-muted">
+												{conflict.details}
+											</p>
+										</div>
+									))
+								)}
 							</Card.Content>
 						</Card>
 

@@ -1,7 +1,12 @@
+import { Provider } from "@/provider";
 import IndexPage from "@/pages/index";
 
 function App() {
-	return <IndexPage />;
+	return (
+		<Provider>
+			<IndexPage />
+		</Provider>
+	);
 }
 
 export default App;
