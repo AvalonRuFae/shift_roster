@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@heroui/react";
+import { Button, Select, Label, ListBox } from "@heroui/react";
+import type { Key } from "@heroui/react";
 import { Shift, DayOfWeek, Employee } from "@/types";
 import { doTimeSlotsOverlap, calculateShiftDuration } from "@/utils/shiftUtils";
 
@@ -129,7 +130,23 @@ export default function SimpleShiftModal({
 		validateShift();
 	}, [selectedEmployeeId, selectedDay, startTime, endTime]);
 
+	// Reset form state when modal opens/closes or when shift prop changes
+	useEffect(() => {
+		if (isOpen) {
+			// Set form values based on shift prop (if editing) or defaults (if creating)
+			setSelectedEmployeeId(shift?.employeeId || "");
+			setSelectedDay(shift?.day || "Monday");
+			setStartTime(shift?.startTime || "09:00");
+			setEndTime(shift?.endTime || "17:00");
+			setErrors([]);
+		}
+	}, [isOpen, shift]);
+
 	if (!isOpen) return null;
+
+	const handleClose = () => {
+		onClose();
+	};
 
 	const handleSave = () => {
 		if (!validateShift()) {
@@ -149,12 +166,6 @@ export default function SimpleShiftModal({
 			endTime,
 		});
 
-		// Reset form
-		setSelectedEmployeeId("");
-		setSelectedDay("Monday");
-		setStartTime("09:00");
-		setEndTime("17:00");
-		setErrors([]);
 		onClose();
 	};
 
@@ -181,6 +192,9 @@ export default function SimpleShiftModal({
 								<Button
 									key={employee.id}
 									size="sm"
+									variant={
+										employee.id == selectedEmployeeId ? "danger" : undefined
+									}
 									onPress={() => setSelectedEmployeeId(employee.id)}
 								>
 									{employee.name}
@@ -193,7 +207,12 @@ export default function SimpleShiftModal({
 						<p className="mb-2 text-sm font-medium">Select Day</p>
 						<div className="flex flex-wrap gap-2">
 							{DAY_OPTIONS.map((day) => (
-								<Button key={day} size="sm" onPress={() => setSelectedDay(day)}>
+								<Button
+									key={day}
+									size="sm"
+									variant={day == selectedDay ? "danger" : undefined}
+									onPress={() => setSelectedDay(day)}
+								>
 									{day.substring(0, 3)}
 								</Button>
 							))}
@@ -202,29 +221,55 @@ export default function SimpleShiftModal({
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<p className="mb-2 text-sm font-medium">Start Time</p>
-							<div className="grid grid-cols-4 gap-2">
-								{TIME_SLOTS.map((time) => (
-									<Button
-										key={time}
-										size="sm"
-										onPress={() => setStartTime(time)}
-									>
-										{time}
-									</Button>
-								))}
-							</div>
+							<p className="mb-2 text-sm font-medium"></p>
+							<Select
+								className="w-full"
+								placeholder="Select start time"
+								value={startTime}
+								onChange={(value) => setStartTime(value as string)}
+							>
+								<Label>Start Time</Label>
+								<Select.Trigger>
+									<Select.Value />
+									<Select.Indicator />
+								</Select.Trigger>
+								<Select.Popover>
+									<ListBox>
+										{TIME_SLOTS.map((time) => (
+											<ListBox.Item key={time} id={time} textValue={time}>
+												{time}
+												<ListBox.ItemIndicator />
+											</ListBox.Item>
+										))}
+									</ListBox>
+								</Select.Popover>
+							</Select>
 						</div>
 
 						<div>
-							<p className="mb-2 text-sm font-medium">End Time</p>
-							<div className="grid grid-cols-4 gap-2">
-								{TIME_SLOTS.map((time) => (
-									<Button key={time} size="sm" onPress={() => setEndTime(time)}>
-										{time}
-									</Button>
-								))}
-							</div>
+							<p className="mb-2 text-sm font-medium"></p>
+							<Select
+								className="w-full"
+								placeholder="Select end time"
+								value={endTime}
+								onChange={(value) => setEndTime(value as string)}
+							>
+								<Label>End Time</Label>
+								<Select.Trigger>
+									<Select.Value />
+									<Select.Indicator />
+								</Select.Trigger>
+								<Select.Popover>
+									<ListBox>
+										{TIME_SLOTS.map((time) => (
+											<ListBox.Item key={time} id={time} textValue={time}>
+												{time}
+												<ListBox.ItemIndicator />
+											</ListBox.Item>
+										))}
+									</ListBox>
+								</Select.Popover>
+							</Select>
 						</div>
 					</div>
 
@@ -267,7 +312,7 @@ export default function SimpleShiftModal({
 				</div>
 
 				<div className="mt-8 flex justify-end gap-3">
-					<Button onPress={onClose}>Cancel</Button>
+					<Button onPress={handleClose}>Cancel</Button>
 					<Button onPress={handleSave} isDisabled={errors.length > 0}>
 						{shift ? "Update Shift" : "Assign Shift"}
 					</Button>
