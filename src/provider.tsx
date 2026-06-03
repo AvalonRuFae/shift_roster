@@ -1,3 +1,5 @@
+import { ShiftProvider } from "@/contexts/ShiftContext";
+
 export function Provider({ children }: { children: React.ReactNode }) {
-	return <>{children}</>;
+	return <ShiftProvider>{children}</ShiftProvider>;
 }
