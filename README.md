@@ -156,10 +156,12 @@ npm run dev
 
 ### **Test 3: Conflict Detection**
 
-1. Try to assign Maya Chen another shift on Monday 15:00-19:00
-2. System should reject with overlap error
-3. Check conflict panel shows Maya Chen overlap
-4. Fix by deleting one of the overlapping shifts
+1. First create an employee (see Test 1)
+2. Assign them a shift: Monday 09:00-17:00
+3. Try to assign the same employee another shift on Monday 15:00-19:00
+4. System should reject with overlap error
+5. Check conflict panel shows employee overlap conflict
+6. Fix by deleting one of the overlapping shifts
 
 ### **Test 4: Export Functionality**
 
