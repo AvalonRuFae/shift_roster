@@ -1,19 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Kbd, Link, TextField, InputGroup } from "@heroui/react";
+import { Kbd, Link, TextField, InputGroup } from "@heroui/react";
 import clsx from "clsx";
 
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
-import {
-	TwitterIcon,
-	GithubIcon,
-	DiscordIcon,
-	HeartFilledIcon,
-	SearchIcon,
-	Logo,
-} from "@/components/icons";
+import { SearchIcon } from "@/components/icons";
 
 export const Navbar = () => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,24 +32,38 @@ export const Navbar = () => {
 		<nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
 			<header className="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-4 px-6">
 				<div className="flex items-center gap-4">
-					<a className="flex items-center gap-1" href="/">
-						<p className="font-bold text-inherit">Shift Roster</p>
+					<a className="flex items-center gap-1" href="#overview">
+						<p className="font-semibold tracking-tight text-inherit">
+							{siteConfig.name}
+						</p>
 					</a>
+					<div className="hidden lg:flex items-center gap-5 text-sm text-muted">
+						{siteConfig.navItems.map((item) => (
+							<Link
+								key={item.label}
+								className="text-sm text-muted no-underline"
+								href={item.href}
+							>
+								{item.label}
+							</Link>
+						))}
+					</div>
 				</div>
 
-				<div className="hidden sm:flex items-center gap-2">
+				<div className="hidden xl:flex w-full max-w-md">{searchInput}</div>
+
+				<div className="hidden sm:flex items-center gap-3">
+					<Link
+						href={siteConfig.links.docs}
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						Docs
+					</Link>
 					<ThemeSwitch />
 				</div>
 
 				<div className="flex sm:hidden items-center gap-2">
-					<Link
-						aria-label="Github"
-						href={siteConfig.links.github}
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						<GithubIcon className="text-muted" />
-					</Link>
 					<ThemeSwitch />
 					<button
 						aria-expanded={isMenuOpen}
@@ -98,14 +105,9 @@ export const Navbar = () => {
 							<li key={`${item.label}-${index}`}>
 								<Link
 									className={clsx(
-										"block py-2 text-lg no-underline",
-										index === 2
-											? "text-accent"
-											: index === siteConfig.navMenuItems.length - 1
-												? "text-danger"
-												: "text-foreground",
+										"block rounded-lg px-3 py-2 text-base no-underline text-foreground hover:bg-default-100",
 									)}
-									href="#"
+									href={item.href}
 								>
 									{item.label}
 								</Link>
