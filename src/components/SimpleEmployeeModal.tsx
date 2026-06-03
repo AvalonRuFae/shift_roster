@@ -161,7 +161,7 @@ export default function SimpleEmployeeModal({
 					</button>
 					<button
 						type="button"
-						className="rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90"
+						className="rounded-lg border border-separator/70 bg-background px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90"
 						onClick={handleSave}
 					>
 						{employee ? "Update Employee" : "Create Employee"}
