@@ -11,39 +11,39 @@ Built with:
 - HeroUI for component library
 - Tailwind CSS for styling
 
-## Current Implementation Status
+## Implementation Status
 
-### Commit 1: Define Data Models & Types ✅
+### ✅ **Commit 1 & 2: Foundation Complete**
 
-- Created comprehensive TypeScript interfaces for:
-  - Employees (with name, roles, availability preferences)
-  - Shifts (day, time slot, employee assignment)
-  - Conflicts (overlap detection, consecutive days)
-  - Application state structure
-- Implemented utility functions for:
-  - Time calculations and overlap detection
-  - Shift duration calculations
-  - Conflict detection algorithms
-- Set up React Context for state management
-- Added initial mock data matching UI requirements
+- **Data models & types** defined
+- **State management** with React Context
+- **UI connected** to real state data
+- **Automatic conflict detection** working
 
-### Commit 2: Connect UI to State Management ✅
+### ✅ **Commit 3 & 4: UI Interactions Wired Up**
 
-- Updated main page to use ShiftContext instead of static mock data
-- Dynamic metrics calculation (total hours, active employees, conflicts, coverage score)
-- Real-time schedule grid populated from state data
-- Employee cards display actual data with status indicators
-- Summary panel shows real hours with progress bars
-- Conflict panel dynamically displays detected issues
-- All UI components now reflect actual application state
+**Employee Management:**
 
-### Core Features (To Be Implemented):
+- ✅ Create employee (modal with form)
+- ✅ Edit employee (edit button on cards)
+- ✅ Delete employee (delete button on cards)
+- ✅ Role selection with validation
 
-- [ ] Employee management (add/edit/remove)
-- [ ] Shift assignment to days/time slots
-- [ ] Interactive buttons (Add shift, Create employee, Export CSV)
-- [ ] Search and filter functionality
-- [ ] Form validation and error handling
+**Shift Management:**
+
+- ✅ Add shift (modal with form)
+- ✅ Edit shift (click on shift chips)
+- ✅ Delete shift (X button on shift chips)
+- ✅ Time overlap validation
+- ✅ Shift duration limits
+
+**Core Features Working:**
+
+- ✅ Search employees by name/role
+- ✅ Export CSV functionality
+- ✅ Manual conflict check
+- ✅ Real-time schedule updates
+- ✅ Dynamic metrics calculation
 
 ## Default Data (Initial State)
 
@@ -79,10 +79,36 @@ The application starts with pre-loaded mock data to demonstrate functionality:
 - Sofia Patel: Mon, Tue, Thu, Fri 14:00-22:00, Sat-Sun 10:00-18:00
 - Ava Reed: Wed, Fri, Sat 09:00-17:00
 
-### Automatic Conflict Detection:
+## How to Use the Application
 
-1. **Maya Chen**: Overlap conflict on Monday (two shifts: 06:00-14:00 and 18:00-22:00)
-2. **Noah Evans**: Consecutive days conflict (works 7 days straight, limit is 5)
+### **1. Manage Employees**
+
+- Click **"Create employee"** button to add new employees
+- Click **"Edit"** button on employee cards to modify details
+- Click **"Delete"** button to remove employees (also removes their shifts)
+
+### **2. Manage Shifts**
+
+- Click **"Add shift"** button to assign new shifts
+- Click on any **shift chip** in the schedule grid to edit it
+- Click **"×"** button on shift chips to delete them
+- Automatic validation prevents overlapping shifts
+
+### **3. Detect & Resolve Conflicts**
+
+- Conflicts are automatically detected and shown in red
+- Click **"Check conflicts"** button for manual check
+- Fix conflicts by editing or deleting overlapping shifts
+
+### **4. Export Data**
+
+- Click **"Export CSV"** button to download schedule data
+- CSV includes employee, day, times, and duration
+
+### **5. Search & Filter**
+
+- Use search box to find employees by name or role
+- Schedule grid updates in real-time
 
 ## Getting Started
 
@@ -100,73 +126,115 @@ npm run dev
 
 3. Open http://localhost:5173 in your browser
 
-## Design Decisions
+## Testing Instructions
 
-### Data Model
+### **Test 1: Employee Management**
 
-- Employees can have multiple roles (e.g., ["Cashier", "Supervisor"])
-- Shifts are assigned to specific employees on specific days
-- Time slots use "HH:MM" format for simplicity
-- Conflicts are automatically detected and flagged
+1. Click "Create employee" button
+2. Enter name: "Test Employee"
+3. Select roles: ["Cashier", "Cook"]
+4. Click "Create Employee"
+5. Verify new employee appears in list
+6. Click "Edit" on the new employee
+7. Change roles to ["Supervisor"]
+8. Click "Update Employee"
+9. Verify changes reflected
+10. Click "Delete" on the new employee
+11. Confirm deletion
 
-### State Management
+### **Test 2: Shift Assignment**
 
-- Uses React Context for global state
-- All data stored in-memory (no backend required)
-- Conflict detection runs automatically on state changes
-- UI components reactively update when state changes
+1. Click "Add shift" button
+2. Select an employee
+3. Select day: "Wednesday"
+4. Select time: 09:00-17:00
+5. Click "Assign Shift"
+6. Verify shift appears in schedule grid
+7. Click on the new shift chip to edit
+8. Change time to 10:00-18:00
+9. Click "Update Shift"
+10. Verify changes reflected
+11. Click "×" button on shift to delete
+12. Confirm deletion
 
-### UI Integration
+### **Test 3: Conflict Detection**
 
-- Maintains existing HeroUI component structure
-- Dynamic data calculation for all metrics
-- Real-time conflict detection and display
-- Consistent visual design with functional data
+1. Try to assign Maya Chen another shift on Monday 15:00-19:00
+2. System should reject with overlap error
+3. Check conflict panel shows Maya Chen overlap
+4. Fix by deleting one of the overlapping shifts
 
-### Utility Functions
+### **Test 4: Export Functionality**
 
-- Time calculations handle 24-hour format
-- Overlap detection considers partial overlaps
-- Consecutive day detection handles week boundaries
-- Shift duration calculations for summary panels
+1. Click "Export CSV" button
+2. Verify CSV file downloads
+3. Open file to confirm data format
 
-## Application Features
+## Technical Architecture
 
-### Currently Working:
+### **State Management**
 
-- ✅ Weekly schedule grid with real shift data
-- ✅ Dynamic metrics dashboard
-- ✅ Employee cards with actual hours and status
-- ✅ Hours summary with progress bars
-- ✅ Conflict detection and display
-- ✅ Real-time data updates
+- React Context for global state
+- In-memory data storage (no backend required)
+- Automatic conflict detection on state changes
 
-### State Modification Functions (Available but Not UI-connected):
+### **Data Models**
 
-- `addEmployee()`: Add new employees with name and roles
-- `updateEmployee()`: Modify existing employee details
-- `removeEmployee()`: Delete employees (and their shifts)
-- `addShift()`: Assign new shifts to employees
-- `updateShift()`: Modify existing shift details
-- `removeShift()`: Delete shifts
-- `detectConflicts()`: Automatically checks for overlaps and consecutive days
+```typescript
+interface Employee {
+	id: string;
+	name: string;
+	roles: string[];
+	maxHoursPerWeek?: number;
+}
 
-### Next Steps:
+interface Shift {
+	id: string;
+	employeeId: string;
+	day: DayOfWeek;
+	startTime: string; // "HH:MM"
+	endTime: string; // "HH:MM"
+}
+```
 
-1. **Commit 3**: Implement employee management (add/edit/delete) - connect `addEmployee()`, `updateEmployee()`, `removeEmployee()` to UI
-2. **Commit 4**: Implement shift assignment interface - connect `addShift()`, `updateShift()`, `removeShift()` to UI
-3. **Commit 5**: Make buttons functional with forms/modals
-4. **Commit 6**: Add search and filtering
-5. **Commit 7**: Implement CSV export functionality
+### **Conflict Detection**
 
-## Running the App
+- **Overlap detection**: Checks if two shifts for same employee on same day overlap
+- **Consecutive days**: Flags employees working >5 days in a row
+- **Automatic**: Runs whenever state changes
+- **Real-time**: UI updates immediately
 
-The application is now fully functional with real data. You can see:
+## Next Steps (Optional Enhancements)
 
-- Maya Chen has overlapping Monday shifts (conflict flagged)
-- Noah Evans works 7 consecutive days (conflict flagged)
-- Real hours calculated for each employee
-- Dynamic status indicators based on hours worked
-- Live conflict detection
+1. **Drag & drop** shift reassignment
+2. **Employee availability** preferences
+3. **Print-friendly** roster view
+4. **Mobile-responsive** layout improvements
+5. **Shift templates** for common patterns
+6. **Advanced filtering** (by role, day, hours)
 
-See instructions.md for complete requirements and implementation plan.
+## Troubleshooting
+
+### **Common Issues:**
+
+- **Modal doesn't open**: Check browser console for errors
+- **Shift not saving**: Verify all required fields are filled
+- **Conflict not detected**: Refresh page to trigger detection
+- **CSV not downloading**: Check browser download settings
+
+### **Development Commands:**
+
+```bash
+# TypeScript compilation check
+npx tsc --noEmit
+
+# Run tests
+npm run test
+
+# Build for production
+npm run build
+```
+
+---
+
+**The application is now fully functional with all core requirements implemented!**

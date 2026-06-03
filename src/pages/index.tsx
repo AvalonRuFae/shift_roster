@@ -1,12 +1,16 @@
+import { useState } from "react";
 import DefaultLayout from "@/layouts/default";
 import { Avatar, Button, Card, Chip, Input, Table } from "@heroui/react";
 import { useShiftContext } from "@/contexts/ShiftContext";
-import { SHORT_DAY_ABBREVIATIONS, DayOfWeek } from "@/types";
+import { SHORT_DAY_ABBREVIATIONS, DayOfWeek, Shift, Employee } from "@/types";
 import {
 	getShiftsForEmployeeOnDay,
 	formatShift,
 	calculateShiftDuration,
 } from "@/utils/shiftUtils";
+import SimpleEmployeeModal from "@/components/SimpleEmployeeModal";
+import SimpleShiftModal from "@/components/SimpleShiftModal";
+import SimpleConfirmModal from "@/components/SimpleConfirmModal";
 
 const dayColumns = SHORT_DAY_ABBREVIATIONS;
 const DAY_MAPPING: Record<string, DayOfWeek> = {
@@ -59,8 +63,35 @@ function getStatusText(hours: number, cap: number = 40): string {
 }
 
 export default function IndexPage() {
-	const { state, getEmployeeShifts, getTotalHoursForEmployee } =
-		useShiftContext();
+	const {
+		state,
+		getEmployeeShifts,
+		getTotalHoursForEmployee,
+		addEmployee,
+		updateEmployee,
+		removeEmployee,
+		addShift,
+		updateShift,
+		removeShift,
+		detectConflicts,
+	} = useShiftContext();
+
+	// Modal states
+	const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+	const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+	const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+	const [isShiftConfirmModalOpen, setIsShiftConfirmModalOpen] = useState(false);
+
+	// State for modals
+	const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+		null,
+	);
+	const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+	const [confirmAction, setConfirmAction] = useState<{
+		type: "deleteEmployee" | "deleteShift";
+		id: string;
+	} | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
 
 	// Calculate metrics dynamically
 	const totalScheduledHours = state.shifts.reduce((total, shift) => {
@@ -71,7 +102,10 @@ export default function IndexPage() {
 	const conflictsFlagged = state.conflicts.length;
 
 	// Calculate coverage score (simplified)
-	const totalPossibleHours = state.employees.length * 40; // Assuming 40h max per employee
+	const totalPossibleHours = state.employees.reduce(
+		(total, emp) => total + (emp.maxHoursPerWeek || 40),
+		0,
+	);
 	const coverageScore = Math.min(
 		Math.round((totalScheduledHours / totalPossibleHours) * 100),
 		100,
@@ -100,8 +134,19 @@ export default function IndexPage() {
 		},
 	];
 
+	// Filter employees based on search query
+	const filteredEmployees = searchQuery
+		? state.employees.filter(
+				(employee) =>
+					employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					employee.roles.some((role) =>
+						role.toLowerCase().includes(searchQuery.toLowerCase()),
+					),
+			)
+		: state.employees;
+
 	// Prepare schedule rows from real data
-	const scheduleRows = state.employees.map((employee) => {
+	const scheduleRows = filteredEmployees.map((employee) => {
 		// Group shifts by day
 		const shiftsByDay: Record<string, string[]> = {};
 		dayColumns.forEach((dayAbbr) => {
@@ -128,7 +173,7 @@ export default function IndexPage() {
 	});
 
 	// Prepare employee cards from real data
-	const employeeCards = state.employees.map((employee) => {
+	const employeeCards = filteredEmployees.map((employee) => {
 		const totalHours = getTotalHoursForEmployee(employee.id);
 		const cap = employee.maxHoursPerWeek || 40;
 		const statusTone = getStatusTone(totalHours, cap);
@@ -140,7 +185,7 @@ export default function IndexPage() {
 			.map((part) => part[0])
 			.join("");
 
-		// Simple availability calculation (for demo)
+		// Simple availability calculation
 		const employeeShifts = getEmployeeShifts(employee.id);
 		const daysWithShifts = new Set(employeeShifts.map((s) => s.day));
 		const availability =
@@ -157,6 +202,7 @@ export default function IndexPage() {
 			availability,
 			status: statusText,
 			statusTone,
+			employee, // Include full employee object for editing
 		};
 	});
 
@@ -194,6 +240,176 @@ export default function IndexPage() {
 		return !!overlapConflict;
 	};
 
+	// Event handlers
+	const handleCreateEmployee = () => {
+		setSelectedEmployee(null);
+		setIsEmployeeModalOpen(true);
+	};
+
+	const handleEditEmployee = (employee: Employee) => {
+		setSelectedEmployee(employee);
+		setIsEmployeeModalOpen(true);
+	};
+
+	const handleDeleteEmployee = (employeeId: string) => {
+		setConfirmAction({ type: "deleteEmployee", id: employeeId });
+		setIsConfirmModalOpen(true);
+	};
+
+	const handleAddShift = () => {
+		setSelectedShift(null);
+		setIsShiftModalOpen(true);
+	};
+
+	const handleEditShift = (
+		employeeId: string,
+		dayAbbr: string,
+		shiftText: string,
+	) => {
+		if (shiftText === "Off") return;
+
+		const fullDay = DAY_MAPPING[dayAbbr];
+		const [startTime, endTime] = shiftText.split("-");
+
+		const shift = state.shifts.find(
+			(s) =>
+				s.employeeId === employeeId &&
+				s.day === fullDay &&
+				s.startTime === startTime &&
+				s.endTime === endTime,
+		);
+
+		if (shift) {
+			setSelectedShift(shift);
+			setIsShiftModalOpen(true);
+		}
+	};
+
+	const handleDeleteShift = (
+		employeeId: string,
+		dayAbbr: string,
+		shiftText: string,
+	) => {
+		if (shiftText === "Off") return;
+
+		const fullDay = DAY_MAPPING[dayAbbr];
+		const [startTime, endTime] = shiftText.split("-");
+
+		const shift = state.shifts.find(
+			(s) =>
+				s.employeeId === employeeId &&
+				s.day === fullDay &&
+				s.startTime === startTime &&
+				s.endTime === endTime,
+		);
+
+		if (shift) {
+			setConfirmAction({ type: "deleteShift", id: shift.id });
+			setIsShiftConfirmModalOpen(true);
+		}
+	};
+
+	const handleSaveEmployee = (employeeData: Omit<Employee, "id">) => {
+		if (selectedEmployee) {
+			updateEmployee(selectedEmployee.id, employeeData);
+		} else {
+			addEmployee(employeeData);
+		}
+		setIsEmployeeModalOpen(false);
+		setSelectedEmployee(null);
+	};
+
+	const handleSaveShift = (shiftData: Omit<Shift, "id">) => {
+		if (selectedShift) {
+			updateShift(selectedShift.id, shiftData);
+		} else {
+			addShift(shiftData);
+		}
+		setIsShiftModalOpen(false);
+		setSelectedShift(null);
+	};
+
+	const handleConfirmAction = () => {
+		if (!confirmAction) return;
+
+		if (confirmAction.type === "deleteEmployee") {
+			removeEmployee(confirmAction.id);
+		} else if (confirmAction.type === "deleteShift") {
+			removeShift(confirmAction.id);
+		}
+
+		setConfirmAction(null);
+	};
+
+	const handleExportCSV = () => {
+		// Simple CSV export
+		const csvRows = [];
+
+		// Header
+		csvRows.push(
+			["Employee", "Day", "Start Time", "End Time", "Duration (hours)"].join(
+				",",
+			),
+		);
+
+		// Data rows
+		state.shifts.forEach((shift) => {
+			const employee = state.employees.find((e) => e.id === shift.employeeId);
+			const duration = calculateShiftDuration(shift.startTime, shift.endTime);
+			csvRows.push(
+				[
+					employee?.name || "Unknown",
+					shift.day,
+					shift.startTime,
+					shift.endTime,
+					duration.toString(),
+				].join(","),
+			);
+		});
+
+		const csvContent = csvRows.join("\n");
+		const blob = new Blob([csvContent], { type: "text/csv" });
+		const url = window.URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "shift_roster.csv";
+		a.click();
+		window.URL.revokeObjectURL(url);
+
+		alert("CSV exported successfully!");
+	};
+
+	const handleCheckConflicts = () => {
+		const conflicts = detectConflicts();
+		if (conflicts.length === 0) {
+			alert("✅ No conflicts detected! Schedule looks good.");
+		} else {
+			alert(
+				`⚠️ Found ${conflicts.length} conflicts. Check the conflict panel for details.`,
+			);
+		}
+	};
+
+	const closeEmployeeModal = () => {
+		setIsEmployeeModalOpen(false);
+		setSelectedEmployee(null);
+	};
+
+	const closeShiftModal = () => {
+		setIsShiftModalOpen(false);
+		setSelectedShift(null);
+	};
+
+	const closeConfirmModal = () => {
+		setIsConfirmModalOpen(false);
+		setConfirmAction(null);
+	};
+
+	const closeShiftConfirmModal = () => {
+		setIsShiftConfirmModalOpen(false);
+		setConfirmAction(null);
+	};
+
 	return (
 		<DefaultLayout>
 			<section className="flex w-full flex-col gap-6 pb-8" id="overview">
@@ -214,10 +430,13 @@ export default function IndexPage() {
 							</div>
 						</div>
 						<div className="flex flex-wrap gap-3">
-							<Button className="bg-primary text-primary-foreground shadow-sm">
+							<Button
+								className="bg-primary text-primary-foreground shadow-sm"
+								onPress={handleAddShift}
+							>
 								Add shift
 							</Button>
-							<Button variant="secondary">Export CSV</Button>
+							<Button onPress={handleExportCSV}>Export CSV</Button>
 						</div>
 					</Card.Header>
 					<Card.Content className="grid gap-4 border-t border-separator/60 p-6 md:grid-cols-2 xl:grid-cols-4">
@@ -255,6 +474,8 @@ export default function IndexPage() {
 									className="w-full max-w-sm"
 									placeholder="Search employees, roles, or shifts"
 									type="search"
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
 								/>
 							</Card.Header>
 							<Card.Content className="px-0 pb-0">
@@ -295,24 +516,53 @@ export default function IndexPage() {
 																<Table.Cell key={`${row.id}-${day}`}>
 																	<div className="flex flex-wrap gap-2">
 																		{shifts.map((shift) => (
-																			<Chip
+																			<div
 																				key={`${row.id}-${day}-${shift}`}
-																				className={
-																					shift === "Off"
-																						? getChipClassName("default")
-																						: getChipClassName(
-																								hasShiftConflict(
-																									row.id,
-																									day,
-																									shift,
-																								)
-																									? "danger"
-																									: "primary",
-																							)
-																				}
+																				className="group relative"
 																			>
-																				{shift}
-																			</Chip>
+																				<Chip
+																					className={
+																						shift === "Off"
+																							? getChipClassName("default")
+																							: getChipClassName(
+																									hasShiftConflict(
+																										row.id,
+																										day,
+																										shift,
+																									)
+																										? "danger"
+																										: "primary",
+																								)
+																					}
+																				>
+																					<button
+																						className="w-full h-full"
+																						onClick={() =>
+																							handleEditShift(
+																								row.id,
+																								day,
+																								shift,
+																							)
+																						}
+																					>
+																						{shift}
+																					</button>
+																				</Chip>
+																				{shift !== "Off" && (
+																					<button
+																						className="absolute right-0 top-0 hidden -translate-y-1/2 translate-x-1/2 group-hover:block bg-danger text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+																						onClick={() =>
+																							handleDeleteShift(
+																								row.id,
+																								day,
+																								shift,
+																							)
+																						}
+																					>
+																						×
+																					</button>
+																				)}
+																			</div>
 																		))}
 																	</div>
 																</Table.Cell>
@@ -331,7 +581,7 @@ export default function IndexPage() {
 							id="team"
 							className="border border-separator/70 bg-background/80 shadow-sm"
 						>
-							<Card.Header className="p-6 pb-0">
+							<Card.Header className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
 								<div>
 									<Card.Title className="text-2xl">
 										Employees and roles
@@ -340,43 +590,92 @@ export default function IndexPage() {
 										Add, edit, and remove people before assigning shifts.
 									</Card.Description>
 								</div>
+								<Button
+									className="bg-primary text-primary-foreground"
+									onPress={handleCreateEmployee}
+								>
+									Create employee
+								</Button>
 							</Card.Header>
 							<Card.Content className="space-y-4 p-6">
-								{employeeCards.map((employee) => (
-									<div
-										key={employee.id}
-										className="rounded-2xl border border-separator/70 bg-default-50 p-4"
-									>
-										<div className="flex items-start justify-between gap-3">
-											<div className="flex items-center gap-3">
-												<div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-													{employee.avatar}
+								{employeeCards.length === 0 ? (
+									<div className="rounded-2xl border border-separator/70 bg-default-50 p-8 text-center">
+										<p className="text-muted">
+											No employees found{searchQuery ? " matching search" : ""}
+										</p>
+										{searchQuery && (
+											<Button
+												className="mt-4"
+												onPress={() => setSearchQuery("")}
+											>
+												Clear search
+											</Button>
+										)}
+									</div>
+								) : (
+									employeeCards.map((employeeCard) => (
+										<div
+											key={employeeCard.id}
+											className="rounded-2xl border border-separator/70 bg-default-50 p-4 group hover:bg-default-100 transition-colors"
+										>
+											<div className="flex items-start justify-between gap-3">
+												<div className="flex items-center gap-3">
+													<div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+														{employeeCard.avatar}
+													</div>
+													<div>
+														<p className="font-medium">{employeeCard.name}</p>
+														<p className="text-sm text-muted">
+															{employeeCard.role}
+														</p>
+													</div>
+												</div>
+												<div className="flex items-center gap-2">
+													<Chip
+														className={getChipClassName(
+															employeeCard.statusTone,
+														)}
+													>
+														{employeeCard.status}
+													</Chip>
+													<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+														<Button
+															size="sm"
+															onPress={() =>
+																handleEditEmployee(employeeCard.employee)
+															}
+														>
+															Edit
+														</Button>
+														<Button
+															size="sm"
+															variant="danger"
+															onPress={() =>
+																handleDeleteEmployee(employeeCard.id)
+															}
+														>
+															Delete
+														</Button>
+													</div>
+												</div>
+											</div>
+											<div className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2">
+												<div>
+													<p>Weekly hours</p>
+													<p className="mt-1 text-base font-medium text-foreground">
+														{employeeCard.hours}h
+													</p>
 												</div>
 												<div>
-													<p className="font-medium">{employee.name}</p>
-													<p className="text-sm text-muted">{employee.role}</p>
+													<p>Availability</p>
+													<p className="mt-1 text-base font-medium text-foreground">
+														{employeeCard.availability}
+													</p>
 												</div>
 											</div>
-											<Chip className={getChipClassName(employee.statusTone)}>
-												{employee.status}
-											</Chip>
 										</div>
-										<div className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2">
-											<div>
-												<p>Weekly hours</p>
-												<p className="mt-1 text-base font-medium text-foreground">
-													{employee.hours}h
-												</p>
-											</div>
-											<div>
-												<p>Availability</p>
-												<p className="mt-1 text-base font-medium text-foreground">
-													{employee.availability}
-												</p>
-											</div>
-										</div>
-									</div>
-								))}
+									))
+								)}
 							</Card.Content>
 						</Card>
 					</div>
@@ -479,13 +778,16 @@ export default function IndexPage() {
 								</div>
 							</Card.Header>
 							<Card.Content className="space-y-3 p-6">
-								<Button className="w-full bg-primary text-primary-foreground">
+								<Button
+									className="w-full bg-primary text-primary-foreground"
+									onPress={handleCreateEmployee}
+								>
 									Create employee
 								</Button>
-								<Button className="w-full" variant="secondary">
+								<Button className="w-full" onPress={handleAddShift}>
 									Assign shift
 								</Button>
-								<Button className="w-full" variant="secondary">
+								<Button className="w-full" onPress={handleCheckConflicts}>
 									Check conflicts
 								</Button>
 							</Card.Content>
@@ -493,6 +795,45 @@ export default function IndexPage() {
 					</div>
 				</div>
 			</section>
+
+			{/* Modals */}
+			<SimpleEmployeeModal
+				isOpen={isEmployeeModalOpen}
+				onClose={closeEmployeeModal}
+				onSave={handleSaveEmployee}
+				employee={selectedEmployee}
+				title={selectedEmployee ? "Edit Employee" : "Create New Employee"}
+			/>
+
+			<SimpleShiftModal
+				isOpen={isShiftModalOpen}
+				onClose={closeShiftModal}
+				onSave={handleSaveShift}
+				shift={selectedShift}
+				title={selectedShift ? "Edit Shift" : "Assign New Shift"}
+				employees={state.employees}
+				existingShifts={state.shifts}
+			/>
+
+			<SimpleConfirmModal
+				isOpen={isConfirmModalOpen}
+				onClose={closeConfirmModal}
+				onConfirm={handleConfirmAction}
+				title="Delete Employee"
+				message="Are you sure you want to delete this employee? This will also remove all their assigned shifts."
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
+
+			<SimpleConfirmModal
+				isOpen={isShiftConfirmModalOpen}
+				onClose={closeShiftConfirmModal}
+				onConfirm={handleConfirmAction}
+				title="Delete Shift"
+				message="Are you sure you want to delete this shift?"
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
 		</DefaultLayout>
 	);
 }
