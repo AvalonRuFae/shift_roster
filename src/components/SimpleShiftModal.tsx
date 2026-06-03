@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button, Select, Label, ListBox } from "@heroui/react";
-import type { Key } from "@heroui/react";
 import { Shift, DayOfWeek, Employee } from "@/types";
 import { doTimeSlotsOverlap, calculateShiftDuration } from "@/utils/shiftUtils";
 
@@ -63,6 +62,7 @@ export default function SimpleShiftModal({
 	const [startTime, setStartTime] = useState(shift?.startTime || "09:00");
 	const [endTime, setEndTime] = useState(shift?.endTime || "17:00");
 	const [errors, setErrors] = useState<string[]>([]);
+	const [warnings, setWarnings] = useState<string[]>([]);
 
 	const selectedEmployee = employees.find(
 		(emp) => emp.id === selectedEmployeeId,
@@ -96,7 +96,8 @@ export default function SimpleShiftModal({
 			}
 		}
 
-		// Check for overlaps with existing shifts
+		// Check for overlaps with existing shifts (warning only - doesn't block saving)
+		const newWarnings: string[] = [];
 		if (selectedEmployeeId && selectedDay && startTime && endTime) {
 			const employeeShiftsOnDay = existingShifts.filter(
 				(s) =>
@@ -114,8 +115,9 @@ export default function SimpleShiftModal({
 						existingShift.endTime,
 					)
 				) {
-					newErrors.push(
-						`Overlaps with existing shift: ${existingShift.startTime}-${existingShift.endTime}`,
+					// This is a warning - overlaps are allowed but will be flagged in UI
+					newWarnings.push(
+						`⚠️ Overlap with existing shift: ${existingShift.startTime}-${existingShift.endTime}. This will be flagged in the schedule.`,
 					);
 					break;
 				}
@@ -123,6 +125,7 @@ export default function SimpleShiftModal({
 		}
 
 		setErrors(newErrors);
+		setWarnings(newWarnings);
 		return newErrors.length === 0;
 	};
 
@@ -139,6 +142,7 @@ export default function SimpleShiftModal({
 			setStartTime(shift?.startTime || "09:00");
 			setEndTime(shift?.endTime || "17:00");
 			setErrors([]);
+			setWarnings([]);
 		}
 	}, [isOpen, shift]);
 
@@ -193,7 +197,7 @@ export default function SimpleShiftModal({
 									key={employee.id}
 									size="sm"
 									variant={
-										employee.id == selectedEmployeeId ? "danger" : undefined
+										selectedEmployeeId == employee.id ? "danger" : undefined
 									}
 									onPress={() => setSelectedEmployeeId(employee.id)}
 								>
@@ -221,7 +225,6 @@ export default function SimpleShiftModal({
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<p className="mb-2 text-sm font-medium"></p>
 							<Select
 								className="w-full"
 								placeholder="Select start time"
@@ -247,7 +250,6 @@ export default function SimpleShiftModal({
 						</div>
 
 						<div>
-							<p className="mb-2 text-sm font-medium"></p>
 							<Select
 								className="w-full"
 								placeholder="Select end time"
@@ -307,6 +309,21 @@ export default function SimpleShiftModal({
 									<li key={index}>{error}</li>
 								))}
 							</ul>
+						</div>
+					)}
+
+					{warnings.length > 0 && (
+						<div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+							<p className="font-medium text-warning">⚠️ Warning:</p>
+							<ul className="mt-2 list-inside list-disc space-y-1 text-sm text-warning">
+								{warnings.map((warning, index) => (
+									<li key={index}>{warning}</li>
+								))}
+							</ul>
+							<p className="mt-2 text-sm text-warning">
+								You can still save this shift. Overlaps will be flagged in the
+								schedule.
+							</p>
 						</div>
 					)}
 				</div>
