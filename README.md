@@ -45,39 +45,36 @@ Built with:
 - ✅ Real-time schedule updates
 - ✅ Dynamic metrics calculation
 
-## Default Data (Initial State)
+## Starting State
 
-The application starts with pre-loaded mock data to demonstrate functionality:
+The application starts with a **clean slate** - no employees and no shifts. This allows you to build your roster from scratch.
 
-### Employees:
+### How to Get Started:
+
+1. **Create Employees**: Click "Create employee" button to add your team members
+2. **Assign Shifts**: Click "Add shift" button to schedule work hours
+3. **Manage Schedule**: Edit or delete shifts as needed
+4. **Check Conflicts**: Use "Check conflicts" button to validate your schedule
+
+### Example Data (For Testing):
+
+If you want to test with sample data, you can quickly create these employees:
 
 ```typescript
+// Example employees you can create:
 [
-	{ id: "1", name: "Maya Chen", roles: ["Supervisor", "Front desk"] },
-	{ id: "2", name: "Jordan Lee", roles: ["Cook"] },
-	{ id: "3", name: "Sofia Patel", roles: ["Cashier"] },
-	{ id: "4", name: "Noah Evans", roles: ["Supervisor", "Stock"] },
-	{ id: "5", name: "Ava Reed", roles: ["Cook"] },
+	{ name: "Maya Chen", roles: ["Supervisor", "Front desk"] },
+	{ name: "Jordan Lee", roles: ["Cook"] },
+	{ name: "Sofia Patel", roles: ["Cashier"] },
+	{ name: "Noah Evans", roles: ["Supervisor", "Stock"] },
+	{ name: "Ava Reed", roles: ["Cook"] },
 ];
 ```
 
-### Key Shifts (with built-in conflicts):
+### Example Conflicts to Test:
 
-**Maya Chen** (Employee 1):
-
-- Monday: 06:00-14:00 AND 18:00-22:00 (✅ Conflict: Overlapping shifts on same day)
-- Tuesday-Friday: 06:00-14:00 daily
-- Saturday-Sunday: Off
-
-**Noah Evans** (Employee 4):
-
-- Monday-Sunday: 08:00-16:00 all 7 days (✅ Conflict: >5 consecutive days)
-
-**Other Employees** (No conflicts):
-
-- Jordan Lee: Tue-Fri 12:00-20:00, Sat 09:00-17:00
-- Sofia Patel: Mon, Tue, Thu, Fri 14:00-22:00, Sat-Sun 10:00-18:00
-- Ava Reed: Wed, Fri, Sat 09:00-17:00
+1. **Overlap Conflict**: Assign the same employee two overlapping shifts on the same day
+2. **Consecutive Days**: Schedule an employee for more than 5 days in a row
 
 ## How to Use the Application
 
