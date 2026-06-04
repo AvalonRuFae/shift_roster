@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Employee } from "@/types";
+import { Button } from "@heroui/react";
 
 interface SimpleEmployeeModalProps {
 	isOpen: boolean;
@@ -168,18 +169,16 @@ export default function SimpleEmployeeModal({
 						</div>
 						<div className="flex flex-wrap gap-2">
 							{roleOptions.map((role) => (
-								<button
+								<Button
 									key={role.key}
 									type="button"
-									className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-										selectedRoles.includes(role.key)
-											? "bg-primary text-primary-foreground"
-											: "border border-separator/70 bg-background hover:bg-default-100"
-									}`}
+									variant={
+										selectedRoles.includes(role.key) ? "danger" : undefined
+									}
 									onClick={() => toggleRole(role.key)}
 								>
 									{role.label}
-								</button>
+								</Button>
 							))}
 							<button
 								type="button"
