@@ -91,6 +91,7 @@ export default function IndexPage() {
 		type: "deleteEmployee" | "deleteShift";
 		id: string;
 	} | null>(null);
+	const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	// Calculate metrics dynamically
@@ -388,6 +389,30 @@ export default function IndexPage() {
 				`⚠️ Found ${conflicts.length} conflicts. Check the conflict panel for details.`,
 			);
 		}
+	};
+
+	const handleClearAllData = () => {
+		setIsClearDataModalOpen(true);
+	};
+
+	const handleConfirmClearData = () => {
+		// Clear from localStorage
+		try {
+			localStorage.removeItem("shift_roster_employees");
+			localStorage.removeItem("shift_roster_shifts");
+			localStorage.removeItem("shift_roster_custom_roles");
+		} catch (error) {
+			console.error("Error clearing localStorage:", error);
+		}
+
+		// Show confirmation
+		alert("✅ All data cleared successfully! Page will refresh.");
+
+		// Close modal
+		setIsClearDataModalOpen(false);
+
+		// Refresh page to reset UI state
+		window.location.reload();
 	};
 
 	const closeEmployeeModal = () => {
@@ -790,6 +815,12 @@ export default function IndexPage() {
 								<Button className="w-full" onPress={handleCheckConflicts}>
 									Check conflicts
 								</Button>
+								<Button
+									className="w-full bg-danger text-danger-foreground"
+									onPress={handleClearAllData}
+								>
+									Clear All Data
+								</Button>
 							</Card.Content>
 						</Card>
 					</div>
@@ -832,6 +863,16 @@ export default function IndexPage() {
 				title="Delete Shift"
 				message="Are you sure you want to delete this shift?"
 				confirmText="Delete"
+				cancelText="Cancel"
+			/>
+
+			<SimpleConfirmModal
+				isOpen={isClearDataModalOpen}
+				onClose={() => setIsClearDataModalOpen(false)}
+				onConfirm={handleConfirmClearData}
+				title="Clear All Data"
+				message="⚠️ WARNING: This will permanently delete ALL employees, shifts, and custom roles. This action cannot be undone. Are you sure you want to continue?"
+				confirmText="Yes, Clear Everything"
 				cancelText="Cancel"
 			/>
 		</DefaultLayout>

@@ -49,6 +49,36 @@ Built with:
 
 The application starts with a **clean slate** - no employees and no shifts. This allows you to build your roster from scratch.
 
+## Data Persistence
+
+The application uses **localStorage** to save your data between sessions:
+
+### **What gets saved:**
+
+- ✅ **Employees** (name, roles, max hours)
+- ✅ **Shifts** (employee assignments, days, times)
+- ✅ **Custom roles** (roles you add via "Add Role" button)
+
+### **What doesn't get saved:**
+
+- ❌ Conflicts (recalculated on load)
+- ❌ Temporary form states
+
+### **How it works:**
+
+1. Data is automatically saved whenever you make changes
+2. Data loads automatically when you revisit the page
+3. Uses your browser's local storage (cleared if you clear browser data)
+4. Custom roles are stored separately and persist across sessions
+
+### **Clearing data:**
+
+- **Easy way**: Use the "Clear All Data" button in the Quick Actions panel (red button)
+- **Manual way**: Use browser's "Clear site data" or developer tools
+- **Specific keys**: Delete `shift_roster_employees`, `shift_roster_shifts`, `shift_roster_custom_roles`
+
+⚠️ **Warning**: Clearing data is permanent and cannot be undone!
+
 ### How to Get Started:
 
 1. **Create Employees**: Click "Create employee" button to add your team members
@@ -174,8 +204,9 @@ npm run dev
 ### **State Management**
 
 - React Context for global state
-- In-memory data storage (no backend required)
+- **localStorage persistence** for employees, shifts, and custom roles
 - Automatic conflict detection on state changes
+- Data automatically saves/loads from browser storage
 
 ### **Data Models**
 

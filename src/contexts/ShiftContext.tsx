@@ -13,10 +13,31 @@ import {
 	calculateShiftDuration,
 } from "@/utils/shiftUtils";
 
-// Start with empty state - users will create their own employees and shifts
-const initialEmployees: Employee[] = [];
+// Load initial state from localStorage or start with empty arrays
+const loadFromLocalStorage = (): AppState => {
+	try {
+		const savedEmployees = localStorage.getItem("shift_roster_employees");
+		const savedShifts = localStorage.getItem("shift_roster_shifts");
 
-const initialShifts: Shift[] = [];
+		const employees = savedEmployees ? JSON.parse(savedEmployees) : [];
+		const shifts = savedShifts ? JSON.parse(savedShifts) : [];
+
+		// Return initial state with loaded data
+		return {
+			employees,
+			shifts,
+			conflicts: [], // Conflicts will be recalculated
+		};
+	} catch (error) {
+		console.error("Error loading from localStorage:", error);
+		// Start with empty state if there's an error
+		return {
+			employees: [],
+			shifts: [],
+			conflicts: [],
+		};
+	}
+};
 
 interface ShiftContextType {
 	state: AppState;
@@ -47,11 +68,23 @@ interface ShiftProviderProps {
 }
 
 export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children }) => {
-	const [state, setState] = useState<AppState>({
-		employees: initialEmployees,
-		shifts: initialShifts,
-		conflicts: [],
-	});
+	const [state, setState] = useState<AppState>(() => loadFromLocalStorage());
+
+	// Helper function to save state to localStorage
+	const saveToLocalStorage = useCallback((newState: AppState) => {
+		try {
+			localStorage.setItem(
+				"shift_roster_employees",
+				JSON.stringify(newState.employees),
+			);
+			localStorage.setItem(
+				"shift_roster_shifts",
+				JSON.stringify(newState.shifts),
+			);
+		} catch (error) {
+			console.error("Error saving to localStorage:", error);
+		}
+	}, []);
 
 	// Detect conflicts whenever state changes
 	const detectConflicts = useCallback((): Conflict[] => {
@@ -111,73 +144,106 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children }) => {
 				id: generateId(),
 			};
 
-			setState((prev) => ({
-				...prev,
-				employees: [...prev.employees, newEmployee],
-			}));
+			setState((prev) => {
+				const newState = {
+					...prev,
+					employees: [...prev.employees, newEmployee],
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
 
 			return newEmployee;
 		},
-		[],
+		[saveToLocalStorage],
 	);
 
 	const updateEmployee = useCallback(
 		(id: string, updates: Partial<Employee>) => {
-			setState((prev) => ({
-				...prev,
-				employees: prev.employees.map((emp) =>
-					emp.id === id ? { ...emp, ...updates } : emp,
-				),
-			}));
+			setState((prev) => {
+				const newState = {
+					...prev,
+					employees: prev.employees.map((emp) =>
+						emp.id === id ? { ...emp, ...updates } : emp,
+					),
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
 		},
-		[],
+		[saveToLocalStorage],
 	);
 
 	const removeEmployee = useCallback(
 		(id: string) => {
-			// Also remove all shifts for this employee
-			const shiftsToKeep = state.shifts.filter(
-				(shift) => shift.employeeId !== id,
-			);
+			setState((prev) => {
+				// Also remove all shifts for this employee
+				const shiftsToKeep = prev.shifts.filter(
+					(shift) => shift.employeeId !== id,
+				);
 
-			setState((prev) => ({
-				...prev,
-				employees: prev.employees.filter((emp) => emp.id !== id),
-				shifts: shiftsToKeep,
-			}));
+				const newState = {
+					...prev,
+					employees: prev.employees.filter((emp) => emp.id !== id),
+					shifts: shiftsToKeep,
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
 		},
-		[state.shifts],
+		[saveToLocalStorage],
 	);
 
-	const addShift = useCallback((shiftData: Omit<Shift, "id">): Shift => {
-		const newShift: Shift = {
-			...shiftData,
-			id: generateId(),
-		};
+	const addShift = useCallback(
+		(shiftData: Omit<Shift, "id">): Shift => {
+			const newShift: Shift = {
+				...shiftData,
+				id: generateId(),
+			};
 
-		setState((prev) => ({
-			...prev,
-			shifts: [...prev.shifts, newShift],
-		}));
+			setState((prev) => {
+				const newState = {
+					...prev,
+					shifts: [...prev.shifts, newShift],
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
 
-		return newShift;
-	}, []);
+			return newShift;
+		},
+		[saveToLocalStorage],
+	);
 
-	const updateShift = useCallback((id: string, updates: Partial<Shift>) => {
-		setState((prev) => ({
-			...prev,
-			shifts: prev.shifts.map((shift) =>
-				shift.id === id ? { ...shift, ...updates } : shift,
-			),
-		}));
-	}, []);
+	const updateShift = useCallback(
+		(id: string, updates: Partial<Shift>) => {
+			setState((prev) => {
+				const newState = {
+					...prev,
+					shifts: prev.shifts.map((shift) =>
+						shift.id === id ? { ...shift, ...updates } : shift,
+					),
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
+		},
+		[saveToLocalStorage],
+	);
 
-	const removeShift = useCallback((id: string) => {
-		setState((prev) => ({
-			...prev,
-			shifts: prev.shifts.filter((shift) => shift.id !== id),
-		}));
-	}, []);
+	const removeShift = useCallback(
+		(id: string) => {
+			setState((prev) => {
+				const newState = {
+					...prev,
+					shifts: prev.shifts.filter((shift) => shift.id !== id),
+				};
+				saveToLocalStorage(newState);
+				return newState;
+			});
+		},
+		[saveToLocalStorage],
+	);
 
 	const getEmployeeShifts = useCallback(
 		(employeeId: string): Shift[] => {
