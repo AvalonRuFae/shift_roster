@@ -1,32 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Kbd, Link, TextField, InputGroup } from "@heroui/react";
+import { Link } from "@heroui/react";
 import clsx from "clsx";
 
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
-import { SearchIcon } from "@/components/icons";
 
 export const Navbar = () => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-	const searchInput = (
-		<TextField aria-label="Search" type="search">
-			<InputGroup>
-				<InputGroup.Prefix>
-					<SearchIcon className="text-base text-muted pointer-events-none flex-shrink-0" />
-				</InputGroup.Prefix>
-				<InputGroup.Input className="text-sm" placeholder="Search..." />
-				<InputGroup.Suffix>
-					<Kbd className="hidden lg:inline-flex">
-						<Kbd.Abbr keyValue="command" />
-						<Kbd.Content>K</Kbd.Content>
-					</Kbd>
-				</InputGroup.Suffix>
-			</InputGroup>
-		</TextField>
-	);
 
 	return (
 		<nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
@@ -50,16 +32,7 @@ export const Navbar = () => {
 					</div>
 				</div>
 
-				<div className="hidden xl:flex w-full max-w-md">{searchInput}</div>
-
 				<div className="hidden sm:flex items-center gap-3">
-					<Link
-						href={siteConfig.links.docs}
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						Docs
-					</Link>
 					<ThemeSwitch />
 				</div>
 
@@ -99,7 +72,6 @@ export const Navbar = () => {
 
 			{isMenuOpen && (
 				<div className="border-t border-separator sm:hidden">
-					<div className="p-4">{searchInput}</div>
 					<ul className="flex flex-col gap-2 px-4 pb-4">
 						{siteConfig.navMenuItems.map((item, index) => (
 							<li key={`${item.label}-${index}`}>
