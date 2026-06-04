@@ -2,6 +2,10 @@
 
 A React-based web application for managers to create and manage weekly staff schedules.
 
+## Video Demonstration
+
+In the folder Video_demonstrations
+
 ## Project Structure
 
 Built with:
