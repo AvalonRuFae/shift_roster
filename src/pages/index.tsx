@@ -56,7 +56,8 @@ function getStatusTone(
 
 // Helper function to get status text
 function getStatusText(hours: number, cap: number = 40): string {
-	if (hours >= cap) return "Over limit";
+	if (hours > cap) return "Over limit";
+	if (hours == cap) return "Reached capacity";
 	if (hours >= cap * 0.9) return "Near limit";
 	if (hours >= cap * 0.7) return "Good coverage";
 	return "Part-time";
